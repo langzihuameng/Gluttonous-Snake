@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Media;
 using System.Runtime.CompilerServices;
+using System.Speech.Synthesis;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -16,6 +19,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using System.Xml;
+using System.Xml.Serialization;
 
 namespace GluttonousSnake
 {
@@ -24,10 +28,12 @@ namespace GluttonousSnake
     /// </summary>
     public partial class MainWindow : Window
     {
+        /*******************************************************************************************/
+
         const int SnakeSquareSize = 20;                         // 方块的大小
 
         SolidColorBrush snakeBodyBrush = Brushes.Green;         // 蛇身颜色
-        SolidColorBrush snakeHeadBrush = Brushes.Blue;          // 蛇头颜色
+        SolidColorBrush snakeHeadBrush = Brushes.Yellow;          // 蛇头颜色
 
         List<SnakePart> snakeParts = new List<SnakePart>();     // 一个整蛇
 
@@ -53,6 +59,18 @@ namespace GluttonousSnake
         Boolean isFlagStart = false;                            // 解决游戏开始和结束按键的 bug
         Boolean isCanAgein = true;                              // 游戏运行中 不可以重新开始游戏 
 
+
+        // 对 XML 文件的 序列与反序列操作数据
+        List<SnakeHighScore> HighScoreList = new List<SnakeHighScore>();
+        String snake_HighScoreList_XML = "snake_highscorelist.xml";
+        const int MaxHighScoreListEntryCount = 5;
+
+
+        //SystemSounds.Exclamation.Play();                                  // 系统声音
+        MediaPlayer mediaPlayer = new MediaPlayer();                        // 多媒体对象 拖放音乐
+        SpeechSynthesizer speechSynthesizer = new SpeechSynthesizer();      // 语音合成
+
+        /*******************************************************************************************/
 
         public MainWindow()
         {
@@ -87,7 +105,7 @@ namespace GluttonousSnake
                 {
                     Width = SnakeSquareSize,
                     Height = SnakeSquareSize,
-                    Fill = changedColor ? Brushes.LightYellow : Brushes.LightSteelBlue
+                    Fill = changedColor ? Brushes.White : Brushes.LightGray
                 };
 
                 changedColor = !changedColor;               // 取返，不一样的颜色
@@ -240,21 +258,60 @@ namespace GluttonousSnake
 
         private void EndGame()
         {
+            // 判断 是否为新高分
+            Boolean isNewHighScore = false;
+
+            if (currentScore > 0)
+            {
+                int lowestHightScore = HighScoreList.Count > 0 ? HighScoreList.Min(x => x.Score) : 0;
+            
+                if((currentScore > lowestHightScore) || (HighScoreList.Count< MaxHighScoreListEntryCount))
+                {
+                    // 胜利的叫声
+                    mediaPlayer.Open(new Uri("Musics/win.wav", UriKind.RelativeOrAbsolute));
+                    mediaPlayer.Play();
+
+                    bdrNewHighScore.Visibility = Visibility.Visible;
+                    this.txtPlayerName.Focus();
+                    isNewHighScore = true;
+
+                    PromptBuilder promptBuilder = new PromptBuilder();
+                    promptBuilder.AppendText("恭喜你，进入了高分榜，你的得分是：");
+                    promptBuilder.AppendTextWithHint(currentScore.ToString(), SayAs.NumberCardinal);
+                    promptBuilder.AppendText("分");
+                    speechSynthesizer.SpeakAsync(promptBuilder);
+                }
+            }
+
+            if (isNewHighScore == false)
+            {
+                // 没有进入高分榜的惨叫声
+                mediaPlayer.Open(new Uri("Musics/win.wav", UriKind.RelativeOrAbsolute));
+                mediaPlayer.Play();
+
+                this.tbFinalScore.Text = currentScore.ToString();
+                this.bdrEndOfGame.Visibility = Visibility.Visible;
+
+                PromptBuilder promptBuilder = new PromptBuilder();
+                promptBuilder.AppendText("对不起，你没有进入高分榜，你的得分是：");
+                promptBuilder.AppendTextWithHint(currentScore.ToString(), SayAs.NumberCardinal);
+                promptBuilder.AppendText("分");
+                speechSynthesizer.SpeakAsync(promptBuilder);
+            }
+
             gameTickTimer.IsEnabled = false;        // 停止定时器 
 
-            //MessageBox.Show("你的蛇挂了，请按空格重新开始！", "WPF 贪吃蛇",
-            //    MessageBoxButton.OK, MessageBoxImage.Asterisk);
-
-            this.tbFinalScore.Text = currentScore.ToString();
-            this.bdrEndOfGame.Visibility = Visibility.Visible;
-
             isFlagStart = false;
-
             isCanAgein = true;
         }
 
         private void EatSnakeFood()
         {
+            // 吃东西的声音
+            mediaPlayer.Open(new Uri("Musics/eat.wav", UriKind.RelativeOrAbsolute));
+            mediaPlayer.Play();
+
+
             ++snakeLength;
             ++currentScore;
 
@@ -267,6 +324,10 @@ namespace GluttonousSnake
             DrawSnakeFood();                                // 画食物
 
             UpdateGameStatus();                             // 更新窗口分数与速度
+
+
+           
+
         }
 
         private void UpdateGameStatus()
@@ -328,9 +389,10 @@ namespace GluttonousSnake
             gameTickTimer.IsEnabled = true;
             gameTickTimer.Start();      // 启动定时器
 
-            this.bdrWelcomeMessage.Visibility = Visibility.Hidden;
+            this.bdrWelcomeMessage.Visibility = Visibility.Collapsed;
+            this.bdrEndOfGame.Visibility = Visibility.Collapsed;
+            this.bdrHighScore.Visibility = Visibility.Collapsed;
 
-            this.bdrEndOfGame.Visibility = Visibility.Hidden;
         }
 
         private Point GetNextFoodPosition()
@@ -352,6 +414,9 @@ namespace GluttonousSnake
 
         private void Window_KeyUp(object sender, KeyEventArgs e)
         {
+            if (this.bdrNewHighScore.Visibility == Visibility.Visible)
+                return;
+
             if (e.Key == Key.Space)
             {
                 if (isCanAgein == true && isGameRuning == true)
@@ -440,6 +505,58 @@ namespace GluttonousSnake
             this.GameArea.Children.Add(snakeFood);
             Canvas.SetTop(snakeFood, foodPosition.Y);
             Canvas.SetLeft(snakeFood, foodPosition.X);
+        }
+
+        private void Button_Click_ShowHighScore(object sender, RoutedEventArgs e)
+        {
+            this.bdrHighScore.Visibility = Visibility.Visible;
+            this.bdrWelcomeMessage.Visibility = Visibility.Collapsed;
+        }
+
+        private void SavaHighScoreList()
+        {
+            XmlSerializer serializer = new XmlSerializer(typeof(List<SnakeHighScore>));
+            using (Stream writer = new FileStream(snake_HighScoreList_XML, FileMode.Create))
+            {
+                serializer.Serialize(writer, new List<SnakeHighScore>(HighScoreList.OrderByDescending(x => x.Score).Take(MaxHighScoreListEntryCount)));
+            }
+        }
+
+        private void LoadHighScoreList()
+        {
+            HighScoreList = new List<SnakeHighScore>();
+            if (File.Exists(snake_HighScoreList_XML))
+            {
+                XmlSerializer serializer = new XmlSerializer(typeof(List<SnakeHighScore>));
+                using (Stream writer = new FileStream(snake_HighScoreList_XML, FileMode.Open))
+                {
+                    HighScoreList = (List<SnakeHighScore>)serializer.Deserialize(writer);
+                }
+            }
+
+            this.bdrHighScoreListItems.ItemsSource = HighScoreList;
+        }
+
+        private void Button_Click_AddHighScore(object sender, RoutedEventArgs e)
+        {
+            HighScoreList.Add(new SnakeHighScore { PlayerName = txtPlayerName.Text, Score = currentScore });
+            HighScoreList = new List<SnakeHighScore>(HighScoreList.OrderByDescending(x => x.Score).Take(MaxHighScoreListEntryCount));
+            this.bdrHighScoreListItems.ItemsSource = HighScoreList;
+
+            this.txtPlayerName.Text = "";
+
+            SavaHighScoreList();
+
+            this.bdrNewHighScore.Visibility = Visibility.Collapsed;
+            this.bdrHighScore.Visibility = Visibility.Visible;
+
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            LoadHighScoreList();
+
+            this.bdrNewHighScore.Visibility = Visibility.Collapsed;
         }
     }
 }
