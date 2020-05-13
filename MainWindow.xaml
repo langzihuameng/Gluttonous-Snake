@@ -8,7 +8,8 @@
         WindowStartupLocation="CenterScreen"
         KeyUp="Window_KeyUp"
         WindowStyle="None"
-        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        Loaded="Window_Loaded">
  
     <!--窗口内容呈现触发的事件-->
     <DockPanel Background="Black">
@@ -52,60 +53,25 @@
             <Button Grid.Column="3" Content="❎" Click="Button_Click_Close"/>
         </Grid>
 
+        
+        <!--欢迎界面-->
         <Border BorderBrush="Black" BorderThickness="5">
-            <Border.Background>
-                <LinearGradientBrush StartPoint="1,0">
-                    <LinearGradientBrush.GradientStops>
-                        <GradientStop x:Name="lgb1" Offset="0.1" Color="LightBlue"/>
-                        <GradientStop x:Name="lgb2" Offset="0.25" Color="LightPink"/>
-                        <GradientStop x:Name="lgb3" Offset="0.7" Color="LightGreen"/>
-                        <GradientStop x:Name="lgb4" Offset="0.85" Color="LightSteelBlue"/>
-                    </LinearGradientBrush.GradientStops>
-                </LinearGradientBrush>
-            </Border.Background>
-
-            <Border.Triggers>
-                <EventTrigger RoutedEvent="Loaded">
-                    <BeginStoryboard>
-                        <Storyboard>
-                            <ColorAnimation Duration="0:0:3" To="LightGreen" 
-                                             Storyboard.TargetName="lgb1" 
-                                             Storyboard.TargetProperty="Color"
-                                            AutoReverse="True" RepeatBehavior="Forever"/>
-                            <ColorAnimation Duration="0:0:2" To="LightSteelBlue" 
-                                             Storyboard.TargetName="lgb2" 
-                                             Storyboard.TargetProperty="Color"
-                                            AutoReverse="True" RepeatBehavior="Forever"/>
-                            <ColorAnimation Duration="0:0:3" To="LightBlue" 
-                                             Storyboard.TargetName="lgb3" 
-                                             Storyboard.TargetProperty="Color"
-                                            AutoReverse="True" RepeatBehavior="Forever"/>
-                            <ColorAnimation Duration="0:0:3" To="LightSeaGreen" 
-                                             Storyboard.TargetName="lgb4" 
-                                             Storyboard.TargetProperty="Color"
-                                            AutoReverse="True" RepeatBehavior="Forever"/>
-                        </Storyboard>
-                    </BeginStoryboard>
-                </EventTrigger>
-            </Border.Triggers>
 
             <Canvas x:Name="GameArea" ClipToBounds="True" Height="400" Width="400">
-                <Canvas.Resources>
-                    <Style TargetType="Rectangle">
-                        <Setter Property="Opacity" Value="0.5"/>
-                    </Style>
-                </Canvas.Resources>
-                <Border Visibility="Collapsed" x:Name="bdrWelcomeMessage" Panel.ZIndex="1" Width="300" Height="300" 
+                <Border Visibility="Hidden" x:Name="bdrWelcomeMessage" Panel.ZIndex="1" Width="300" Height="300" 
                         Canvas.Left="50" Canvas.Top="50" Background="AliceBlue">
                     <StackPanel>
                         <TextBlock Text="WPF 贪吃蛇" FontSize="40" HorizontalAlignment="Center"
                                     Margin="0,20,0,0" FontWeight="Bold"/>
                         <TextBlock Text="光标键控件蛇的方向，手动暂停、关闭游戏。请注意贪吃蛇的游戏规则：不要撞到墙壁，也不要撞到自己的身体，一旦撞到，则游戏结束！ 唯一任务就是吃果实，得更多的分数！"
-                                   TextWrapping="Wrap" Margin="20" FontSize="15" FontWeight="Bold"/>
+                                   TextWrapping="Wrap" Margin="20,20,20,0" FontSize="15" FontWeight="Bold"/>
                         <TextBlock Text="按空格键开始游戏" Foreground="Red" FontSize="25" FontWeight="Bold" 
-                                   HorizontalAlignment="Center" Margin="0 20 0 0"/>
+                                   HorizontalAlignment="Center" Margin="15 15 15 0"/>
+                        <Button Height="30" Width="100" Margin="15" Content="显示高分榜" Click="Button_Click_ShowHighScore"/>
                     </StackPanel>
                 </Border>
+                
+                <!--结束界面-->
                 <Border Visibility="Collapsed" x:Name="bdrEndOfGame" Panel.ZIndex="1" Width="300" Height="300" 
                         Canvas.Left="50" Canvas.Top="50" Background="AliceBlue">
                     <StackPanel>
@@ -117,6 +83,42 @@
                                    FontSize="60"/>
                         <TextBlock Text="按空格键开始游戏" Foreground="Red" FontSize="25" FontWeight="Bold" 
                                    HorizontalAlignment="Center" Margin="0 20 0 0"/>
+                    </StackPanel>
+                </Border>
+
+                <!--高分榜的排名界面-->
+                <Border Visibility="Collapsed" x:Name="bdrHighScore" Panel.ZIndex="1" Width="300" Height="300" 
+                        Canvas.Left="50" Canvas.Top="50">
+                    <StackPanel Orientation="Vertical" Background="AliceBlue">
+                        <Border BorderThickness="0 0 0 2" BorderBrush="Silver" Margin="0 10">
+                            <TextBlock HorizontalAlignment="Center" FontSize="30" FontWeight="Bold"
+                                       Text="高分榜"/>
+                        </Border>
+                        <ItemsControl x:Name="bdrHighScoreListItems">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="5">
+                                        <TextBlock Text="{Binding PlayerName}" DockPanel.Dock="Left" FontSize="22"/>
+                                        <TextBlock Text="{Binding Score}" DockPanel.Dock="Right" FontSize="22" HorizontalAlignment="Right"/>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="按空格键开始游戏" Foreground="Red" FontSize="25" FontWeight="Bold" 
+                                   HorizontalAlignment="Center" Margin="0 20 0 0"/>
+                    </StackPanel>
+                </Border>
+
+                <!--用于进入高分榜界面-->
+                <Border Visibility="Collapsed" x:Name="bdrNewHighScore" Panel.ZIndex="1" Width="300" Height="300" 
+                        Canvas.Left="50" Canvas.Top="50" Background="AliceBlue">
+                    <StackPanel>
+                        <TextBlock Text="新高分" FontSize="40" HorizontalAlignment="Center"
+                                    Margin="0,20,0,0" FontWeight="Bold"/>
+                        <TextBlock  Text="恭喜你，进入了高分榜！请在下面输入你的名字："
+                            TextWrapping="Wrap" Margin="20,20,20,0" FontSize="20" FontWeight="Bold"/>
+                        <TextBox x:Name="txtPlayerName" Margin="20" FontSize="28" FontWeight="Bold" MaxLength="10"/>
+                        <Button Height="30" Width="100" Margin="15" Content="加入高分榜" Click="Button_Click_AddHighScore"/>
                     </StackPanel>
                 </Border>
             </Canvas>
